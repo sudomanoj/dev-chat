@@ -9,14 +9,14 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
+from datetime import timedelta
 from pathlib import Path
 import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
-environ.Env.read_env()
+environ.Env.read_env(BASE_DIR / ".env")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -38,14 +38,23 @@ SYSTEM_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'daphne',
     'django.contrib.staticfiles',
 ]
 
 THIRD_PARTY_APPS = [
+    'django_filters',
+    'drf_yasg',
+    'channels',
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
 ]
 
 LOCAL_APPS = [
     'common',
+    'user_auth',
+    'inbox',
 ]
 
 INSTALLED_APPS = SYSTEM_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -78,7 +87,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'chat_app.wsgi.application'
+# WSGI_APPLICATION = 'chat_app.wsgi.application'
+ASGI_APPLICATION = 'chat_app.asgi.application'
 
 
 # Database
@@ -132,3 +142,60 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Custom user model
+AUTH_USER_MODEL = 'user_auth.User'
+
+# Custom authentication backend
+AUTHENTICATION_BACKENDS = [
+    'user_auth.backends.EmailOrPhoneBackend',  # custom backend 
+    'django.contrib.auth.backends.ModelBackend', # fallback to default
+]
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ],
+}
+
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=600),  # Access token lifetime (e.g., 15 minutes)
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Refresh token lifetime (e.g., 7 days)
+    'ROTATE_REFRESH_TOKENS': True,  # Enable token rotation (to rotate refresh tokens)
+    'AUTH_HEADER_TYPES': ('Bearer',),  # Authorization header types
+    'BLACKLIST_AFTER_ROTATION': True,  # Blacklist the previous refresh token after rotation
+    'UPDATE_LAST_LOGIN': True,  # Update the user's last login time
+    'USER_ID_FIELD': 'uuid',  # Change from 'id' to 'uuid'
+    'USER_ID_CLAIM': 'user_id',
+}
+
+
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': True,  # Disable session-based authentication if you use tokens
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': "Enter 'Bearer <your_token>'",
+        },
+    },
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("localhost", 6379)],
+        },
+    },
+}
