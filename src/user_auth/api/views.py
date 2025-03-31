@@ -1,6 +1,6 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from .models import ChatGroup
+from ..models import ChatGroup
 from .serializers import ChatGroupSerializer
 
 
