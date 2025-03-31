@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 from .models import Message
+from user_auth.models import ChatGroup, UserGroup
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -24,7 +25,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.user_group_name,
             self.channel_name
         )
-        print(f'Added {self.channel_name} channel to {self.user_group_name} group')
+        
+        # Get the user's chat groups and add them to the group
+        user_groups = await self.get_user_chat_groups()
+        for group in user_groups:
+            chat_group = f'chat_{group}'
+            await self.channel_layer.group_add(
+                chat_group,
+                self.channel_name
+            )
         
         await self.accept()
         
@@ -40,25 +49,42 @@ class ChatConsumer(AsyncWebsocketConsumer):
         text_data_json = json.loads(text_data)
         message = text_data_json.get('message')
         receiver = text_data_json.get('receiver')
+        for_chat_group = text_data_json.get('for_chat_group')
         
         if not message or not receiver:
             return
         
-        receiver_user = await self.get_user(receiver)
-        if not receiver_user:
-            return
-        
-        await self.save_message(message, receiver_user)
-        
-        await self.channel_layer.group_send(
-            f'chat_{receiver}',
-            {
-                'type': 'chat.message',
-                'message': message,
-                'sender': str(self.user.uuid),
-            }
-        )
-        print(f'Sent message to chat_{receiver}')
+        if not for_chat_group:
+            receiver_user = await self.get_user(receiver)
+            if not receiver_user:
+                return
+            
+            await self.save_message(message, receiver_user)
+            
+            await self.channel_layer.group_send(
+                f'chat_{receiver}',
+                {
+                    'type': 'chat.message',
+                    'message': message,
+                    'sender': str(self.user.uuid),
+                }
+            )
+            print(f'Sent message to chat_{receiver}')
+            
+        else:
+            chat_group = await database_sync_to_async(ChatGroup.objects.filter(uuid=receiver).first)()
+            if not chat_group:
+                return
+            
+            await self.channel_layer.group_send(
+                f'chat_{receiver}',
+                {
+                    'type': 'chat.message',
+                    'message': message,
+                    'sender': str(self.user.uuid),
+                }
+            )
+            
     async def chat_message(self, event):
         message = event['message']
         sender = event['sender']
@@ -88,6 +114,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         message_obj.save()
         return message_obj
     
+    @database_sync_to_async
+    def get_user_chat_groups(self):
+        user_groups = list(UserGroup.objects.filter(user=self.user).values_list('group__uuid', flat=True))
+        return user_groups
     
     
         

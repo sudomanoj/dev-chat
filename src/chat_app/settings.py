@@ -168,8 +168,8 @@ REST_FRAMEWORK = {
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=600),  # Access token lifetime (e.g., 15 minutes)
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Refresh token lifetime (e.g., 7 days)
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=env.int("ACCESS_TOKEN_LIFETIME")),  # Access token lifetime (e.g., 15 minutes)
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=env.int("REFRESH_TOKEN_LIFETIME")),  # Refresh token lifetime (e.g., 7 days)
     'ROTATE_REFRESH_TOKENS': True,  # Enable token rotation (to rotate refresh tokens)
     'AUTH_HEADER_TYPES': ('Bearer',),  # Authorization header types
     'BLACKLIST_AFTER_ROTATION': True,  # Blacklist the previous refresh token after rotation

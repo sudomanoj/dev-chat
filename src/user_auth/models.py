@@ -54,3 +54,73 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     def __str__(self):
         return self.email or self.phone_number
+    
+    
+    
+class ChatGroup(TimeStampMixin):
+    """
+    Model representing a chat group.
+    """
+    uuid = models.UUIDField(
+        primary_key=True,
+        default=uuid4,
+        editable=False,
+    )
+    
+    name = models.CharField(
+        max_length=255,
+        unique=True,
+        error_messages={
+            'unique': "A group with that name already exists.",
+        },
+    )
+    
+    description = models.TextField(
+        blank=True,
+        null=True,
+    )
+    
+    
+    def __str__(self):
+        return self.name
+    
+    
+class UserGroup(TimeStampMixin):
+    """
+    Model representing the relationship between a user and a chat group.
+    """
+    uuid = models.UUIDField(
+        primary_key=True,
+        default=uuid4,
+        editable=False,
+    )
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='user_groups',
+    )
+    
+    group = models.ForeignKey(
+        ChatGroup,
+        on_delete=models.CASCADE,
+        related_name='group_users',
+    )
+    
+    is_owner = models.BooleanField(
+        default=False,
+        help_text='Designates whether the user is the owner of the group.',
+    )
+    
+    is_admin = models.BooleanField(
+        default=False,
+        help_text='Designates whether the user is an admin of the group.',
+    )
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.group.name}"
+    
+    class Meta:
+        unique_together = ('user', 'group')
+        verbose_name = 'User Group'
+        verbose_name_plural = 'User Groups'
